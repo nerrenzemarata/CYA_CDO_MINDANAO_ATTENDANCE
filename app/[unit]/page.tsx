@@ -46,6 +46,7 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
   const [editMember, setEditMember]   = useState<Member | null>(null)
   const [editName, setEditName]       = useState('')
   const [editContact, setEditContact] = useState('')
+  const [editBus, setEditBus]         = useState<'Bus 1' | 'Bus 2'>('Bus 1')
   const [saving, setSaving]           = useState(false)
   const [search, setSearch]           = useState('')
 
@@ -126,11 +127,11 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
     try {
       const res = await fetch(`/api/members/${editMember.id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName.trim(), contact_number: editContact.trim() }),
+        body: JSON.stringify({ name: editName.trim(), contact_number: editContact.trim(), bus: editBus }),
       })
       if (res.ok) {
         setMembers(prev => prev.map(m => m.id === editMember.id
-          ? { ...m, name: editName.trim(), contact_number: editContact.trim() } : m))
+          ? { ...m, name: editName.trim(), contact_number: editContact.trim(), bus: editBus } : m))
         setEditMember(null)
       }
     } finally { setSaving(false) }
@@ -269,7 +270,7 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
               <RollCallCard key={m.id} member={m} index={i + 1} updatingId={updatingId} synced={synced}
                 neon={T.neon} neonBg={T.neonBg} neonBorder={T.neonBorder} neonText={T.neonText}
                 onToggle={toggleStatus} onDelete={deleteMember}
-                onEdit={m => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? '') }}
+                onEdit={m => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? ''); setEditBus(m.bus ?? 'Bus 1') }}
               />
             ))}
           </div>
@@ -277,7 +278,7 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
           <ListModeTable members={filtered} updatingId={updatingId} synced={synced}
             neon={T.neon} neonBg={T.neonBg} neonBorder={T.neonBorder} neonText={T.neonText}
             onToggle={toggleStatus} onDelete={deleteMember}
-            onEdit={m => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? '') }}
+            onEdit={m => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? ''); setEditBus(m.bus ?? 'Bus 1') }}
           />
         )}
       </div>
@@ -323,6 +324,26 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
             <input type="tel" value={editContact} onChange={e => setEditContact(e.target.value)}
               className={`w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 ${T.focusRing} font-mono-data text-sm`}
             />
+          </CyberField>
+          <CyberField label="BUS ASSIGNMENT">
+            <div className="flex gap-2">
+              {(['Bus 1', 'Bus 2'] as const).map(b => (
+                <button key={b} type="button" onClick={() => setEditBus(b)}
+                  className="flex-1 py-3 rounded-xl font-mono-data text-sm font-bold tracking-widest border-2 transition-all"
+                  style={editBus === b ? {
+                    background: b === 'Bus 1' ? 'rgba(59,158,255,0.15)' : 'rgba(255,153,51,0.15)',
+                    borderColor: b === 'Bus 1' ? '#3b9eff' : '#ff9933',
+                    color: b === 'Bus 1' ? '#3b9eff' : '#ff9933',
+                    boxShadow: `0 0 12px ${b === 'Bus 1' ? 'rgba(59,158,255,0.3)' : 'rgba(255,153,51,0.3)'}`,
+                  } : {
+                    background: 'rgba(15,23,42,0.5)',
+                    borderColor: 'rgba(71,85,105,0.4)',
+                    color: '#475569',
+                  }}>
+                  🚌 {b}
+                </button>
+              ))}
+            </div>
           </CyberField>
           <div className="flex gap-3 mt-5">
             <button onClick={() => setEditMember(null)}
