@@ -6,10 +6,10 @@ import { getStaticMembers, applyLocalStorage } from '@/lib/members-static'
 
 const UNITS = ['USTP', 'XU', 'Staffer', 'UC', 'CYA High', 'Butuan'] as const
 
-const UNIT_BUS: Record<string, '🚌 Bus 1' | '🚌 Bus 2'> = {
+const UNIT_BUS: Record<string, string> = {
   USTP: '🚌 Bus 1', XU: '🚌 Bus 1', Staffer: '🚌 Bus 1 & 2',
   UC: '🚌 Bus 2', 'CYA High': '🚌 Bus 2', Butuan: '🚌 Bus 2',
-} as Record<string, '🚌 Bus 1' | '🚌 Bus 2'>
+}
 
 const UNIT_THEME: Record<string, {
   neon: string; neonBg: string; neonBorder: string; neonText: string
