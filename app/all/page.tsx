@@ -20,22 +20,34 @@ const UNIT_THEME: Record<string, { neon: string; neonBg: string; neonBorder: str
   UC:         { neon: '#00ff88', neonBg: 'rgba(0,255,136,0.07)',    neonBorder: 'rgba(0,255,136,0.35)',    neonText: 'text-emerald-400' },
   'CYA High': { neon: '#ff9933', neonBg: 'rgba(255,153,51,0.07)',  neonBorder: 'rgba(255,153,51,0.35)',  neonText: 'text-orange-400'  },
   Butuan:     { neon: '#ff3366', neonBg: 'rgba(255,51,102,0.07)',  neonBorder: 'rgba(255,51,102,0.35)',  neonText: 'text-rose-400'    },
-  Valencia:   { neon: '#00e5cc', neonBg: 'rgba(0,229,204,0.07)',  neonBorder: 'rgba(0,229,204,0.35)',  neonText: 'text-teal-300'    },
+  Valencia:   { neon: '#00e5cc', neonBg: 'rgba(0,229,204,0.07)',   neonBorder: 'rgba(0,229,204,0.35)',   neonText: 'text-teal-300'    },
 }
+
+const CORRECT_PIN = '1567'
 
 type ViewMode = 'rollcall' | 'list'
 
 export default function AllPage() {
-  const [members, setMembers]     = useState<Member[]>(() => getStaticMembers())
-  const [synced, setSynced]       = useState(false)
-  const [loading, setLoading]     = useState(false)
-  const [mode, setMode]           = useState<ViewMode>('list')
-  const [search, setSearch]       = useState('')
+  const [members, setMembers]       = useState<Member[]>(() => getStaticMembers())
+  const [synced, setSynced]         = useState(false)
+  const [mode, setMode]             = useState<ViewMode>('list')
+  const [search, setSearch]         = useState('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  // Apply localStorage after mount (avoids SSR hydration mismatch)
+  // Edit state
+  const [editMember, setEditMember]   = useState<Member | null>(null)
+  const [editName, setEditName]       = useState('')
+  const [editContact, setEditContact] = useState('')
+  const [editBus, setEditBus]         = useState<'Bus 1' | 'Bus 2'>('Bus 1')
+  const [saving, setSaving]           = useState(false)
+
+  // PIN state
+  const [pinVerified, setPinVerified] = useState(false)
+  const [pinPending, setPinPending]   = useState<(() => void) | null>(null)
+
   useEffect(() => {
     setMembers(prev => applyLocalStorage(prev))
+    if (sessionStorage.getItem('pin-ok') === '1') setPinVerified(true)
   }, [])
 
   useEffect(() => { fetchAll() }, [])
@@ -54,10 +66,14 @@ export default function AllPage() {
     } catch { /* silent */ } finally { clearTimeout(timeout); setSynced(true) }
   }
 
+  function requirePin(cb: () => void) {
+    if (pinVerified) { cb(); return }
+    setPinPending(() => cb)
+  }
+
   async function toggleStatus(memberId: string, trip: 'june4_status' | 'june7_status', cur: TripStatus) {
     const next: TripStatus = cur === 'riding' ? 'not_going' : 'riding'
     const memberName = members.find(m => m.id === memberId)?.name ?? ''
-    // Optimistic update — show change instantly + save to localStorage
     setMembers(prev => prev.map(m => m.id === memberId ? { ...m, [trip]: next } : m))
     saveStatus(memberName, trip, next)
     setUpdatingId(memberId + trip)
@@ -70,9 +86,32 @@ export default function AllPage() {
         setMembers(prev => prev.map(m => m.id === memberId ? { ...m, [trip]: cur } : m))
         saveStatus(memberName, trip, cur)
       }
-    } catch {
-      // Keep localStorage value — don't revert when offline
-    } finally { setUpdatingId(null) }
+    } catch { /* keep localStorage */ } finally { setUpdatingId(null) }
+  }
+
+  async function saveEdit() {
+    if (!editMember || !editName.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/members/${editMember.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName.trim(), contact_number: editContact.trim(), bus: editBus }),
+      })
+      if (res.ok) {
+        setMembers(prev => prev.map(m => m.id === editMember.id
+          ? { ...m, name: editName.trim(), contact_number: editContact.trim(), bus: editBus } : m))
+        setEditMember(null)
+      }
+    } finally { setSaving(false) }
+  }
+
+  function openEdit(m: Member) {
+    requirePin(() => {
+      setEditMember(m)
+      setEditName(m.name)
+      setEditContact(m.contact_number ?? '')
+      setEditBus(m.bus ?? 'Bus 1')
+    })
   }
 
   const filtered = members.filter(m =>
@@ -82,6 +121,9 @@ export default function AllPage() {
 
   const totalP4 = members.filter(m => m.june4_status === 'riding').length
   const totalP7 = members.filter(m => m.june7_status === 'riding').length
+
+  // Theme for the edit sheet — use the editing member's unit color
+  const editT = editMember ? UNIT_THEME[editMember.unit] : UNIT_THEME['USTP']
 
   return (
     <main className="min-h-screen bg-[#050a14] bg-grid flex flex-col">
@@ -109,7 +151,6 @@ export default function AllPage() {
             </div>
           </div>
 
-          {/* Global stats */}
           {members.length > 0 && (
             <div className="grid grid-cols-3 gap-2 mt-4">
               {[
@@ -166,68 +207,183 @@ export default function AllPage() {
       {/* ── Content ── */}
       <div className="max-w-2xl mx-auto w-full px-4 pb-10 flex-1 overflow-y-auto space-y-6">
         {UNITS.map(unit => {
-            const unitMembers = filtered.filter(m => m.unit === unit)
-            if (unitMembers.length === 0) return null
-            const T = UNIT_THEME[unit]
-            const p4 = unitMembers.filter(m => m.june4_status === 'riding').length
-            const p7 = unitMembers.filter(m => m.june7_status === 'riding').length
+          const unitMembers = filtered.filter(m => m.unit === unit)
+          if (unitMembers.length === 0) return null
+          const T = UNIT_THEME[unit]
+          const p4 = unitMembers.filter(m => m.june4_status === 'riding').length
+          const p7 = unitMembers.filter(m => m.june7_status === 'riding').length
 
-            return (
-              <section key={unit}>
-                {/* Unit heading */}
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex items-center gap-2 flex-1 flex-wrap">
-                    <span className={`font-mono-data font-black text-lg ${T.neonText}`}
-                      style={{ textShadow: `0 0 14px ${T.neon}60` }}>
-                      {unit}
-                    </span>
-                    <span className="font-mono-data font-black text-base px-2.5 py-0.5 rounded-lg border"
-                      style={{ color: T.neon, borderColor: T.neonBorder, background: T.neonBg, textShadow: `0 0 10px ${T.neon}80` }}>
-                      🚌 {UNIT_BUS[unit]}
-                    </span>
-                    <span className="font-mono-data text-xs text-slate-600">
-                      {unitMembers.length} members
-                    </span>
-                  </div>
-                  {/* Mini stats */}
-                  <div className="flex gap-3">
-                    <span className="font-mono-data text-[11px]" style={{ color: T.neon }}>
-                      J4: {p4}✓
-                    </span>
-                    <span className="font-mono-data text-[11px]" style={{ color: T.neon }}>
-                      J7: {p7}✓
-                    </span>
-                    <Link href={`/${unit}`} className="font-mono-data text-[10px] text-slate-600 hover:text-slate-400 transition-colors tracking-widest">
-                      OPEN ›
-                    </Link>
-                  </div>
+          return (
+            <section key={unit}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-2 flex-1 flex-wrap">
+                  <span className={`font-mono-data font-black text-lg ${T.neonText}`}
+                    style={{ textShadow: `0 0 14px ${T.neon}60` }}>
+                    {unit}
+                  </span>
+                  <span className="font-mono-data font-black text-base px-2.5 py-0.5 rounded-lg border"
+                    style={{ color: T.neon, borderColor: T.neonBorder, background: T.neonBg, textShadow: `0 0 10px ${T.neon}80` }}>
+                    🚌 {UNIT_BUS[unit]}
+                  </span>
+                  <span className="font-mono-data text-xs text-slate-600">{unitMembers.length} members</span>
                 </div>
+                <div className="flex gap-3">
+                  <span className="font-mono-data text-[11px]" style={{ color: T.neon }}>J4: {p4}✓</span>
+                  <span className="font-mono-data text-[11px]" style={{ color: T.neon }}>J7: {p7}✓</span>
+                  <Link href={`/${unit}`} className="font-mono-data text-[10px] text-slate-600 hover:text-slate-400 transition-colors tracking-widest">
+                    OPEN ›
+                  </Link>
+                </div>
+              </div>
 
-                {/* Divider */}
-                <div className="h-px mb-3" style={{ background: `linear-gradient(to right, ${T.neon}40, transparent)` }} />
+              <div className="h-px mb-3" style={{ background: `linear-gradient(to right, ${T.neon}40, transparent)` }} />
 
-                {mode === 'rollcall' ? (
-                  <div className="space-y-2">
-                    {unitMembers.map((m, i) => (
-                      <RollCallRow key={m.id} member={m} index={i + 1} updatingId={updatingId} synced={synced} T={T} onToggle={toggleStatus} />
-                    ))}
-                  </div>
-                ) : (
-                  <CompactTable members={unitMembers} updatingId={updatingId} synced={synced} T={T} onToggle={toggleStatus} />
-                )}
-              </section>
-            )
-          })}
+              {mode === 'rollcall' ? (
+                <div className="space-y-2">
+                  {unitMembers.map((m, i) => (
+                    <RollCallRow key={m.id} member={m} index={i + 1} updatingId={updatingId} synced={synced}
+                      T={T} onToggle={toggleStatus} onEdit={openEdit} />
+                  ))}
+                </div>
+              ) : (
+                <CompactTable members={unitMembers} updatingId={updatingId} synced={synced}
+                  T={T} onToggle={toggleStatus} onEdit={openEdit} />
+              )}
+            </section>
+          )
+        })}
       </div>
+
+      {/* ── PIN Modal ── */}
+      {pinPending && (
+        <PinModal
+          onSuccess={() => {
+            setPinVerified(true)
+            sessionStorage.setItem('pin-ok', '1')
+            pinPending()
+            setPinPending(null)
+          }}
+          onClose={() => setPinPending(null)}
+        />
+      )}
+
+      {/* ── Edit Sheet ── */}
+      {editMember && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-end justify-center z-50"
+          onClick={e => { if (e.target === e.currentTarget) setEditMember(null) }}>
+          <div className="w-full max-w-lg rounded-t-3xl p-6 pb-10"
+            style={{ background: '#0a1628', border: `1px solid ${editT.neon}30`, borderBottom: 'none',
+              boxShadow: `0 -20px 60px ${editT.neon}15` }}>
+            <div className="w-10 h-0.5 rounded-full mx-auto mb-6" style={{ background: editT.neon, opacity: 0.4 }} />
+            <p className="font-mono-data text-sm tracking-[0.25em] mb-5" style={{ color: editT.neon }}>EDIT MEMBER</p>
+
+            <label className="font-mono-data text-[10px] tracking-widest text-slate-600 block mb-1.5">FULL NAME *</label>
+            <input autoFocus type="text" value={editName} onChange={e => setEditName(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-slate-500 font-mono-data text-sm mb-3"
+            />
+
+            <label className="font-mono-data text-[10px] tracking-widest text-slate-600 block mb-1.5">CONTACT NUMBER</label>
+            <input type="tel" value={editContact} onChange={e => setEditContact(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-slate-500 font-mono-data text-sm mb-3"
+            />
+
+            <label className="font-mono-data text-[10px] tracking-widest text-slate-600 block mb-1.5">BUS ASSIGNMENT</label>
+            <div className="flex gap-2 mb-5">
+              {(['Bus 1', 'Bus 2'] as const).map(b => (
+                <button key={b} type="button" onClick={() => setEditBus(b)}
+                  className="flex-1 py-3 rounded-xl font-mono-data text-sm font-bold tracking-widest border-2 transition-all"
+                  style={editBus === b ? {
+                    background: b === 'Bus 1' ? 'rgba(59,158,255,0.15)' : 'rgba(255,153,51,0.15)',
+                    borderColor: b === 'Bus 1' ? '#3b9eff' : '#ff9933',
+                    color: b === 'Bus 1' ? '#3b9eff' : '#ff9933',
+                    boxShadow: `0 0 12px ${b === 'Bus 1' ? 'rgba(59,158,255,0.3)' : 'rgba(255,153,51,0.3)'}`,
+                  } : {
+                    background: 'rgba(15,23,42,0.5)',
+                    borderColor: 'rgba(71,85,105,0.4)',
+                    color: '#475569',
+                  }}>
+                  🚌 {b}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setEditMember(null)}
+                className="flex-1 py-3 rounded-xl border border-slate-700 text-slate-500 font-mono-data text-sm tracking-widest hover:border-slate-500 transition-colors">
+                CANCEL
+              </button>
+              <button onClick={saveEdit} disabled={saving || !editName.trim()}
+                className="flex-1 py-3 rounded-xl text-white font-mono-data text-sm tracking-widest disabled:opacity-30 transition-colors press"
+                style={{ background: editT.neon + '22', border: `1px solid ${editT.neon}50`, color: editT.neon }}>
+                {saving ? 'SAVING…' : 'SAVE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
 
-/* ─── Roll Call Row (compact card for "all" view) ─────────────────────── */
-function RollCallRow({ member, index, updatingId, synced, T, onToggle }: {
+/* ─── PIN Modal ─────────────────────────────────────────────────────────── */
+function PinModal({ onSuccess, onClose }: { onSuccess: () => void; onClose: () => void }) {
+  const [digits, setDigits] = useState('')
+  const [shake, setShake]   = useState(false)
+
+  function tap(d: string) {
+    if (digits.length >= 4) return
+    const next = digits + d
+    setDigits(next)
+    if (next.length === 4) {
+      if (next === CORRECT_PIN) {
+        onSuccess()
+      } else {
+        setShake(true)
+        setTimeout(() => { setDigits(''); setShake(false) }, 600)
+      }
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-72 rounded-3xl p-6 text-center"
+        style={{ background: '#0a1628', border: '1px solid rgba(0,220,255,0.3)', boxShadow: '0 0 40px rgba(0,220,255,0.15)' }}>
+        <div className="flex items-center justify-between mb-5">
+          <span />
+          <p className="font-mono-data text-xs tracking-[0.3em] text-cyan-400">ENTER PIN</p>
+          <button onClick={onClose} className="text-slate-600 hover:text-slate-400 text-lg leading-none">×</button>
+        </div>
+        <div className={`flex justify-center gap-4 mb-8 ${shake ? 'animate-shake' : ''}`}>
+          {[0,1,2,3].map(i => (
+            <div key={i} className="w-4 h-4 rounded-full border-2 transition-all"
+              style={{ borderColor: '#00dcff', background: i < digits.length ? '#00dcff' : 'transparent',
+                boxShadow: i < digits.length ? '0 0 8px #00dcff' : 'none' }} />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, idx) => (
+            k === '' ? <div key={idx} /> :
+            <button key={idx}
+              onClick={() => k === '⌫' ? setDigits(d => d.slice(0,-1)) : tap(k)}
+              className="h-14 rounded-2xl font-mono-data font-bold text-xl transition-all press"
+              style={{ background: 'rgba(0,220,255,0.1)', border: '1px solid rgba(0,220,255,0.25)',
+                color: k === '⌫' ? '#94a3b8' : 'white' }}>
+              {k}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Roll Call Row ─────────────────────────────────────────────────────── */
+function RollCallRow({ member, index, updatingId, synced, T, onToggle, onEdit }: {
   member: Member; index: number; updatingId: string | null; synced: boolean
   T: { neon: string; neonBg: string; neonBorder: string; neonText: string }
   onToggle: (id: string, trip: 'june4_status' | 'june7_status', cur: TripStatus) => void
+  onEdit: (m: Member) => void
 }) {
   return (
     <div className="rounded-xl px-3 py-2.5 flex items-center gap-3"
@@ -236,7 +392,17 @@ function RollCallRow({ member, index, updatingId, synced, T, onToggle }: {
         #{String(index).padStart(2, '0')}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white truncate">{member.name}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="text-sm font-semibold text-white truncate">{member.name}</p>
+          {member.bus && (
+            <span className="font-mono-data text-[8px] px-1 py-0.5 rounded border flex-shrink-0"
+              style={{ color: member.bus === 'Bus 1' ? '#3b9eff' : '#ff9933',
+                borderColor: member.bus === 'Bus 1' ? 'rgba(59,158,255,0.4)' : 'rgba(255,153,51,0.4)',
+                background: member.bus === 'Bus 1' ? 'rgba(59,158,255,0.1)' : 'rgba(255,153,51,0.1)' }}>
+              {member.bus}
+            </span>
+          )}
+        </div>
         {member.contact_number && (
           <a href={`tel:${member.contact_number}`}
             className="font-mono-data text-[10px] text-slate-500 hover:text-emerald-400 transition-colors">
@@ -244,6 +410,10 @@ function RollCallRow({ member, index, updatingId, synced, T, onToggle }: {
           </a>
         )}
       </div>
+      <button onClick={() => onEdit(member)}
+        className="p-1.5 text-slate-700 hover:text-blue-400 rounded-lg hover:bg-slate-800 transition-colors text-sm flex-shrink-0">
+        ✏️
+      </button>
       <div className="flex gap-1.5 flex-shrink-0">
         {(['june4_status', 'june7_status'] as const).map(trip => {
           const present = member[trip] === 'riding'
@@ -266,18 +436,18 @@ function RollCallRow({ member, index, updatingId, synced, T, onToggle }: {
   )
 }
 
-/* ─── Compact Table (list mode for "all" view) ────────────────────────── */
-function CompactTable({ members, updatingId, synced, T, onToggle }: {
+/* ─── Compact Table ─────────────────────────────────────────────────────── */
+function CompactTable({ members, updatingId, synced, T, onToggle, onEdit }: {
   members: Member[]; updatingId: string | null; synced: boolean
   T: { neon: string; neonBg: string; neonBorder: string; neonText: string }
   onToggle: (id: string, trip: 'june4_status' | 'june7_status', cur: TripStatus) => void
+  onEdit: (m: Member) => void
 }) {
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${T.neonBorder}` }}>
-      {/* Header */}
-      <div className="grid grid-cols-[1.4rem_1fr_1.6rem_2.6rem_2.6rem] gap-x-2 px-3 py-1.5"
+      <div className="grid grid-cols-[1.4rem_1fr_1.6rem_1.6rem_2.6rem_2.6rem] gap-x-2 px-3 py-1.5"
         style={{ background: T.neonBg, borderBottom: `1px solid ${T.neonBorder}` }}>
-        {['#','NAME','📞','J4','J7'].map(h => (
+        {['#','NAME','📞','✏️','J4','J7'].map(h => (
           <span key={h} className="font-mono-data text-[9px] text-slate-600 text-center first:text-left">{h}</span>
         ))}
       </div>
@@ -287,11 +457,21 @@ function CompactTable({ members, updatingId, synced, T, onToggle }: {
         const p7 = m.june7_status === 'riding'
         return (
           <div key={m.id}
-            className="grid grid-cols-[1.4rem_1fr_1.6rem_2.6rem_2.6rem] gap-x-2 px-3 py-1.5 items-center border-b border-slate-800/50 last:border-b-0"
+            className="grid grid-cols-[1.4rem_1fr_1.6rem_1.6rem_2.6rem_2.6rem] gap-x-2 px-3 py-1.5 items-center border-b border-slate-800/50 last:border-b-0"
             style={i % 2 === 0 ? { background: 'rgba(255,255,255,0.01)' } : {}}>
             <span className="font-mono-data text-[9px] text-slate-700">{String(i+1).padStart(2,'0')}</span>
             <div className="min-w-0">
-              <p className="text-xs text-slate-200 font-medium truncate leading-tight">{m.name}</p>
+              <div className="flex items-center gap-1 flex-wrap">
+                <p className="text-xs text-slate-200 font-medium truncate leading-tight">{m.name}</p>
+                {m.bus && (
+                  <span className="font-mono-data text-[8px] px-1 rounded border flex-shrink-0"
+                    style={{ color: m.bus === 'Bus 1' ? '#3b9eff' : '#ff9933',
+                      borderColor: m.bus === 'Bus 1' ? 'rgba(59,158,255,0.4)' : 'rgba(255,153,51,0.4)',
+                      background: m.bus === 'Bus 1' ? 'rgba(59,158,255,0.1)' : 'rgba(255,153,51,0.1)' }}>
+                    {m.bus}
+                  </span>
+                )}
+              </div>
               {m.contact_number && (
                 <p className="font-mono-data text-[9px] text-slate-600 truncate">{m.contact_number}</p>
               )}
@@ -301,6 +481,10 @@ function CompactTable({ members, updatingId, synced, T, onToggle }: {
                 ? <a href={`tel:${m.contact_number}`} className="text-slate-600 hover:text-emerald-400 transition-colors text-xs">📞</a>
                 : <span className="text-slate-800 text-xs">—</span>}
             </div>
+            <button onClick={() => onEdit(m)}
+              className="flex items-center justify-center text-slate-700 hover:text-blue-400 transition-colors text-xs">
+              ✏️
+            </button>
             {(['june4_status', 'june7_status'] as const).map(trip => {
               const present = m[trip] === 'riding'
               const busy    = updatingId === m.id + trip
