@@ -122,11 +122,18 @@ export default function HomePage() {
           <p className="font-mono-data text-[10px] text-slate-600 tracking-[0.25em]">
             SELECT UNIT
           </p>
-          <Link href="/all"
-            className="font-mono-data text-[10px] tracking-widest px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all"
-            style={{ background: 'rgba(255,255,255,0.03)' }}>
-            ☰ ALL UNITS ›
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/buses"
+              className="font-mono-data text-[10px] tracking-widest px-3 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(0,220,255,0.05)', border: '1px solid rgba(0,220,255,0.25)', color: '#00dcff' }}>
+              🚌 BUSES ›
+            </Link>
+            <Link href="/all"
+              className="font-mono-data text-[10px] tracking-widest px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all"
+              style={{ background: 'rgba(255,255,255,0.03)' }}>
+              ☰ ALL ›
+            </Link>
+          </div>
         </div>
 
         {UNITS.map(unit => {
