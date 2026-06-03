@@ -93,6 +93,10 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
 
   useEffect(() => { fetchMembers() }, [fetchMembers])
 
+  function guardedToggle(memberId: string, trip: 'june4_status' | 'june7_status', cur: TripStatus) {
+    requirePin(() => toggleStatus(memberId, trip, cur))
+  }
+
   async function toggleStatus(memberId: string, trip: 'june4_status' | 'june7_status', cur: TripStatus) {
     const next: TripStatus = cur === 'riding' ? 'not_going' : 'riding'
     const memberName = members.find(m => m.id === memberId)?.name ?? ''
@@ -184,12 +188,13 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
                 style={{ textShadow: `0 0 20px ${T.neon}60` }}>
                 {unit}
               </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="font-mono-data font-black text-lg px-2.5 py-0.5 rounded-lg border"
-                  style={{ color: T.neon, borderColor: T.neonBorder, background: T.neonBg, textShadow: `0 0 12px ${T.neon}80` }}>
+              <div className="mt-2">
+                <span className="font-mono-data font-black text-2xl px-4 py-1.5 rounded-xl border-2 inline-block"
+                  style={{ color: T.neon, borderColor: T.neon, background: T.neonBg,
+                    textShadow: `0 0 16px ${T.neon}`, boxShadow: `0 0 20px ${T.neon}30` }}>
                   {UNIT_BUS[unit]}
                 </span>
-                <p className="font-mono-data text-xs text-slate-600 tracking-[0.2em]">ATTENDANCE</p>
+                <p className="font-mono-data text-xs text-slate-600 tracking-[0.2em] mt-1">ATTENDANCE</p>
               </div>
             </div>
             <div className="text-right">
@@ -278,7 +283,7 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
             {filtered.map((m, i) => (
               <RollCallCard key={m.id} member={m} index={i + 1} updatingId={updatingId} synced={synced}
                 neon={T.neon} neonBg={T.neonBg} neonBorder={T.neonBorder} neonText={T.neonText}
-                onToggle={toggleStatus} onDelete={id => requirePin(() => deleteMember(id))}
+                onToggle={guardedToggle} onDelete={id => requirePin(() => deleteMember(id))}
                 onEdit={m => requirePin(() => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? ''); setEditBus(m.bus ?? 'Bus 1') })}
               />
             ))}
@@ -286,7 +291,7 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
         ) : (
           <ListModeTable members={filtered} updatingId={updatingId} synced={synced}
             neon={T.neon} neonBg={T.neonBg} neonBorder={T.neonBorder} neonText={T.neonText}
-            onToggle={toggleStatus} onDelete={id => requirePin(() => deleteMember(id))}
+            onToggle={guardedToggle} onDelete={id => requirePin(() => deleteMember(id))}
             onEdit={m => requirePin(() => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? ''); setEditBus(m.bus ?? 'Bus 1') })}
           />
         )}

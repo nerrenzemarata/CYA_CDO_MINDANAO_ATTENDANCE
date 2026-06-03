@@ -71,6 +71,10 @@ export default function AllPage() {
     setPinPending(() => cb)
   }
 
+  function guardedToggle(memberId: string, trip: 'june4_status' | 'june7_status', cur: TripStatus) {
+    requirePin(() => toggleStatus(memberId, trip, cur))
+  }
+
   async function toggleStatus(memberId: string, trip: 'june4_status' | 'june7_status', cur: TripStatus) {
     const next: TripStatus = cur === 'riding' ? 'not_going' : 'riding'
     const memberName = members.find(m => m.id === memberId)?.name ?? ''
@@ -242,12 +246,12 @@ export default function AllPage() {
                 <div className="space-y-2">
                   {unitMembers.map((m, i) => (
                     <RollCallRow key={m.id} member={m} index={i + 1} updatingId={updatingId} synced={synced}
-                      T={T} onToggle={toggleStatus} onEdit={openEdit} />
+                      T={T} onToggle={guardedToggle} onEdit={openEdit} />
                   ))}
                 </div>
               ) : (
                 <CompactTable members={unitMembers} updatingId={updatingId} synced={synced}
-                  T={T} onToggle={toggleStatus} onEdit={openEdit} />
+                  T={T} onToggle={guardedToggle} onEdit={openEdit} />
               )}
             </section>
           )

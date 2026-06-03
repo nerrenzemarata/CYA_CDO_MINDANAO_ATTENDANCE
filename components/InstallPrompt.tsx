@@ -20,6 +20,7 @@ export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [show, setShow] = useState(false)
   const [ios, setIos] = useState(false)
+  const [showAndroidManual, setShowAndroidManual] = useState(false)
 
   useEffect(() => {
     // Register service worker
@@ -69,9 +70,10 @@ export default function InstallPrompt() {
       const { outcome } = await deferredPrompt.userChoice
       if (outcome === 'accepted') { setShow(false); return }
       setDeferredPrompt(null)
+      return
     }
-    // No native prompt — just dismiss (user will see browser UI)
-    setShow(false)
+    // No native prompt available — show manual Android instructions
+    setShowAndroidManual(true)
   }
 
   function handleDismiss() {
@@ -115,8 +117,17 @@ export default function InstallPrompt() {
               then tap <span className="text-cyan-400 font-bold">Add to Home Screen</span>
             </p>
           </div>
+        ) : showAndroidManual ? (
+          // Android manual fallback
+          <div className="rounded-xl px-3 py-2.5 mb-3"
+            style={{ background: 'rgba(0,220,255,0.06)', border: '1px solid rgba(0,220,255,0.15)' }}>
+            <p className="font-mono-data text-[10px] text-slate-400 leading-relaxed">
+              Tap the <span className="text-cyan-400 font-bold">⋮ menu</span> in Chrome,
+              then tap <span className="text-cyan-400 font-bold">Add to Home Screen</span>
+            </p>
+          </div>
         ) : (
-          // Android: native prompt or manual
+          // Android: native prompt button
           <button onClick={handleInstall}
             className="w-full py-2.5 rounded-xl font-mono-data font-bold text-sm tracking-widest text-black mb-3"
             style={{ background: 'linear-gradient(135deg, #00dcff, #3b9eff)', boxShadow: '0 0 16px rgba(0,220,255,0.35)' }}>
