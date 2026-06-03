@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import InstallPrompt from '@/components/InstallPrompt'
 
 export const metadata: Metadata = {
-  title: 'CYA Mindanao Conference',
-  description: 'Bus attendance monitoring for CYA Mindanao Conference',
+  title: 'CYA CDO Mindanao Conference',
+  description: 'Bus attendance monitoring for CYA CDO Mindanao Conference',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'CYA Attendance',
+    title: 'CYA CDO Attendance',
   },
 }
 
@@ -16,7 +17,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#1d4ed8',
+  themeColor: '#0f172a',
 }
 
 export default function RootLayout({
@@ -30,21 +31,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
+        <InstallPrompt />
         {children}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                    console.log('SW registration failed: ', err);
-                  });
-                });
-              }
-            `,
-          }}
-        />
       </body>
     </html>
   )

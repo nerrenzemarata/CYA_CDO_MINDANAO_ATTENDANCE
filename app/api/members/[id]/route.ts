@@ -1,23 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
   const body = await request.json()
-
-  const { data, error } = await supabase
-    .from('members')
-    .update(body)
-    .eq('id', params.id)
-    .select()
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
+  const { data, error } = await db.updateMember(params.id, body)
+  if (error) return NextResponse.json({ error }, { status: 500 })
   return NextResponse.json(data)
 }
 
@@ -25,14 +15,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const { error } = await supabase
-    .from('members')
-    .delete()
-    .eq('id', params.id)
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
+  const { error } = await db.deleteMember(params.id)
+  if (error) return NextResponse.json({ error }, { status: 500 })
   return NextResponse.json({ success: true })
 }
