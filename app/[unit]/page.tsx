@@ -378,7 +378,15 @@ function RollCallCard({ member, index, updatingId, synced, neon, neonBg, neonBor
             #{String(index).padStart(2, '0')}
           </span>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-white truncate leading-snug">{member.name}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-white truncate leading-snug">{member.name}</p>
+              {member.bus && (
+                <span className="font-mono-data text-[9px] px-1.5 py-0.5 rounded-md border flex-shrink-0"
+                  style={{ color: member.bus === 'Bus 1' ? '#3b9eff' : '#ff9933', borderColor: member.bus === 'Bus 1' ? 'rgba(59,158,255,0.4)' : 'rgba(255,153,51,0.4)', background: member.bus === 'Bus 1' ? 'rgba(59,158,255,0.1)' : 'rgba(255,153,51,0.1)' }}>
+                  🚌 {member.bus}
+                </span>
+              )}
+            </div>
             {member.contact_number ? (
               <a href={`tel:${member.contact_number}`}
                 className="inline-flex items-center gap-1.5 mt-1 text-xs font-mono-data text-slate-400 hover:text-white transition-colors group">
@@ -475,7 +483,15 @@ function ListModeTable({ members, updatingId, synced, neon, neonBg, neonBorder, 
 
               {/* Name (tap to edit) */}
               <button onClick={() => onEdit(m)} className="text-left min-w-0">
-                <p className="text-xs text-slate-200 truncate font-medium leading-tight">{m.name}</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="text-xs text-slate-200 truncate font-medium leading-tight">{m.name}</p>
+                  {m.bus && (
+                    <span className="font-mono-data text-[8px] px-1 py-0.5 rounded border flex-shrink-0 leading-none"
+                      style={{ color: m.bus === 'Bus 1' ? '#3b9eff' : '#ff9933', borderColor: m.bus === 'Bus 1' ? 'rgba(59,158,255,0.4)' : 'rgba(255,153,51,0.4)', background: m.bus === 'Bus 1' ? 'rgba(59,158,255,0.1)' : 'rgba(255,153,51,0.1)' }}>
+                      {m.bus}
+                    </span>
+                  )}
+                </div>
                 {m.contact_number && (
                   <p className="font-mono-data text-[9px] text-slate-600 truncate leading-tight">{m.contact_number}</p>
                 )}
