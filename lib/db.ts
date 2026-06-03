@@ -4,7 +4,7 @@
  *  - Falls back to in-memory store (local dev / preview)
  */
 
-import type { Member, TripStatus } from '@/types'
+import type { Member, TripStatus, ChatMessage } from '@/types'
 
 const isSupabaseConfigured =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -148,6 +148,21 @@ const local = {
   },
 }
 
+/* ─── In-memory chat store ────────────────────────────────────────────────── */
+
+const chatStore: ChatMessage[] = []
+
+const localChat = {
+  getAll: (): ChatMessage[] => [...chatStore].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  ),
+  insert: (payload: { sender_name: string; message: string; unit?: string }): ChatMessage => {
+    const msg: ChatMessage = { ...payload, unit: payload.unit ?? null, id: makeId(), created_at: new Date().toISOString() }
+    chatStore.push(msg)
+    return msg
+  },
+}
+
 /* ─── Supabase store ─────────────────────────────────────────────────────── */
 
 async function getSupabase() {
@@ -201,5 +216,23 @@ export const db = {
     const sb = await getSupabase()
     const { error } = await sb.from('members').delete().eq('id', id)
     return { error: error?.message ?? null }
+  },
+
+  async getChat(): Promise<{ data: ChatMessage[]; error: string | null }> {
+    if (!isSupabaseConfigured) return { data: localChat.getAll(), error: null }
+    const sb = await getSupabase()
+    const { data, error } = await sb
+      .from('chat_messages')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .limit(200)
+    return { data: data ?? [], error: error?.message ?? null }
+  },
+
+  async postChat(payload: { sender_name: string; message: string; unit?: string }): Promise<{ data: ChatMessage | null; error: string | null }> {
+    if (!isSupabaseConfigured) return { data: localChat.insert(payload), error: null }
+    const sb = await getSupabase()
+    const { data, error } = await sb.from('chat_messages').insert(payload).select().single()
+    return { data, error: error?.message ?? null }
   },
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import InstallPrompt from '@/components/InstallPrompt'
+import GroupChat from '@/components/GroupChat'
 
 export const metadata: Metadata = {
   title: 'CYA CDO Mindanao Conference',
@@ -33,6 +34,7 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning>
         <InstallPrompt />
+        <GroupChat />
         {children}
       </body>
     </html>

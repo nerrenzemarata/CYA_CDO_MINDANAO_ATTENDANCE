@@ -4,6 +4,14 @@ export type TripStatus = 'riding' | 'not_going'
 
 export type BusNumber = 'Bus 1' | 'Bus 2'
 
+export interface ChatMessage {
+  id: string
+  sender_name: string
+  message: string
+  unit: string | null
+  created_at: string
+}
+
 export interface Member {
   id: string
   unit: Unit
