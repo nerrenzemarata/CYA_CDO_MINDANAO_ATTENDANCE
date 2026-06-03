@@ -6,11 +6,11 @@ import { Member, TripStatus } from '@/types'
 import { getStaticMembers, applyLocalStorage } from '@/lib/members-static'
 import { saveStatus, saveStatusMapFromMembers } from '@/lib/local-storage'
 
-const UNITS = ['USTP', 'XU', 'Staffer', 'UC', 'CYA High', 'Butuan'] as const
+const UNITS = ['USTP', 'XU', 'Staffer', 'UC', 'CYA High', 'Butuan', 'Valencia'] as const
 
 const UNIT_BUS: Record<string, string> = {
   USTP: 'Bus 1', XU: 'Bus 1', Staffer: 'Bus 1 & 2',
-  UC: 'Bus 2', 'CYA High': 'Bus 2', Butuan: 'Bus 2',
+  UC: 'Bus 2', 'CYA High': 'Bus 2', Butuan: 'Bus 2', Valencia: 'Bus 2',
 }
 
 const UNIT_THEME: Record<string, { neon: string; neonBg: string; neonBorder: string; neonText: string }> = {
@@ -20,6 +20,7 @@ const UNIT_THEME: Record<string, { neon: string; neonBg: string; neonBorder: str
   UC:         { neon: '#00ff88', neonBg: 'rgba(0,255,136,0.07)',    neonBorder: 'rgba(0,255,136,0.35)',    neonText: 'text-emerald-400' },
   'CYA High': { neon: '#ff9933', neonBg: 'rgba(255,153,51,0.07)',  neonBorder: 'rgba(255,153,51,0.35)',  neonText: 'text-orange-400'  },
   Butuan:     { neon: '#ff3366', neonBg: 'rgba(255,51,102,0.07)',  neonBorder: 'rgba(255,51,102,0.35)',  neonText: 'text-rose-400'    },
+  Valencia:   { neon: '#00e5cc', neonBg: 'rgba(0,229,204,0.07)',  neonBorder: 'rgba(0,229,204,0.35)',  neonText: 'text-teal-300'    },
 }
 
 type ViewMode = 'rollcall' | 'list'

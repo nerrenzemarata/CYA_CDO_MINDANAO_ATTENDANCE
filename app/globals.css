@@ -86,3 +86,13 @@ body {
 /* ── Safe area ────────────────────────────────────────────────── */
 .pt-safe { padding-top: env(safe-area-inset-top, 16px); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+
+/* ── PIN shake animation ──────────────────────────────────────── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-8px); }
+  40%       { transform: translateX(8px); }
+  60%       { transform: translateX(-6px); }
+  80%       { transform: translateX(6px); }
+}
+.animate-shake { animation: shake 0.5s ease; }

@@ -6,12 +6,12 @@ import { Member, TripStatus } from '@/types'
 import { getStaticMembers, applyLocalStorage } from '@/lib/members-static'
 import { saveStatus, saveStatusMapFromMembers } from '@/lib/local-storage'
 
-type Unit = 'USTP' | 'XU' | 'Staffer' | 'UC' | 'CYA High' | 'Butuan'
-const UNITS: Unit[] = ['USTP', 'XU', 'Staffer', 'UC', 'CYA High', 'Butuan']
+type Unit = 'USTP' | 'XU' | 'Staffer' | 'UC' | 'CYA High' | 'Butuan' | 'Valencia'
+const UNITS: Unit[] = ['USTP', 'XU', 'Staffer', 'UC', 'CYA High', 'Butuan', 'Valencia']
 
 const UNIT_BUS: Record<string, string> = {
   USTP: '🚌 Bus 1', XU: '🚌 Bus 1', Staffer: '🚌 Bus 1 & 2',
-  UC: '🚌 Bus 2', 'CYA High': '🚌 Bus 2', Butuan: '🚌 Bus 2',
+  UC: '🚌 Bus 2', 'CYA High': '🚌 Bus 2', Butuan: '🚌 Bus 2', Valencia: '🚌 Bus 2',
 }
 
 const UNIT_THEME: Record<string, {
@@ -24,6 +24,7 @@ const UNIT_THEME: Record<string, {
   UC:         { neon: '#00ff88', neonBg: 'rgba(0,255,136,0.08)',    neonBorder: 'rgba(0,255,136,0.4)',    neonText: 'text-emerald-400', gradient: 'from-emerald-900/80 to-[#050a14]', focusRing: 'focus:ring-emerald-500', btnBg: 'bg-emerald-600 hover:bg-emerald-500' },
   'CYA High': { neon: '#ff9933', neonBg: 'rgba(255,153,51,0.08)',  neonBorder: 'rgba(255,153,51,0.4)',  neonText: 'text-orange-400',  gradient: 'from-orange-900/80 to-[#050a14]',  focusRing: 'focus:ring-orange-500',  btnBg: 'bg-orange-500 hover:bg-orange-400'  },
   Butuan:     { neon: '#ff3366', neonBg: 'rgba(255,51,102,0.08)',  neonBorder: 'rgba(255,51,102,0.4)',  neonText: 'text-rose-400',    gradient: 'from-rose-900/80 to-[#050a14]',    focusRing: 'focus:ring-rose-500',    btnBg: 'bg-rose-600 hover:bg-rose-500'      },
+  Valencia:   { neon: '#00e5cc', neonBg: 'rgba(0,229,204,0.08)',  neonBorder: 'rgba(0,229,204,0.4)',  neonText: 'text-teal-300',    gradient: 'from-teal-900/80 to-[#050a14]',    focusRing: 'focus:ring-teal-400',    btnBg: 'bg-teal-500 hover:bg-teal-400'      },
 }
 
 type ViewMode = 'rollcall' | 'list'
@@ -49,6 +50,8 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
   const [editBus, setEditBus]         = useState<'Bus 1' | 'Bus 2'>('Bus 1')
   const [saving, setSaving]           = useState(false)
   const [search, setSearch]           = useState('')
+  const [pinVerified, setPinVerified] = useState(false)
+  const [pinPending, setPinPending]   = useState<(() => void) | null>(null)
 
   if (!UNITS.includes(unit)) {
     return (
@@ -63,7 +66,13 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
   // Apply localStorage after mount (avoids SSR hydration mismatch)
   useEffect(() => {
     setMembers(prev => applyLocalStorage(prev))
+    if (sessionStorage.getItem('pin-ok') === '1') setPinVerified(true)
   }, [])
+
+  function requirePin(cb: () => void) {
+    if (pinVerified) { cb(); return }
+    setPinPending(() => cb)
+  }
 
   const fetchMembers = useCallback(async () => {
     // Enable buttons after 3s regardless, so phone users aren't stuck
@@ -238,7 +247,7 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
         </div>
 
         {/* Add */}
-        <button onClick={() => setShowAdd(true)}
+        <button onClick={() => requirePin(() => setShowAdd(true))}
           className={`${T.btnBg} text-white px-3 py-2 rounded-xl font-bold text-sm press transition-colors flex-shrink-0`}>
           +
         </button>
@@ -269,19 +278,33 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
             {filtered.map((m, i) => (
               <RollCallCard key={m.id} member={m} index={i + 1} updatingId={updatingId} synced={synced}
                 neon={T.neon} neonBg={T.neonBg} neonBorder={T.neonBorder} neonText={T.neonText}
-                onToggle={toggleStatus} onDelete={deleteMember}
-                onEdit={m => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? ''); setEditBus(m.bus ?? 'Bus 1') }}
+                onToggle={toggleStatus} onDelete={id => requirePin(() => deleteMember(id))}
+                onEdit={m => requirePin(() => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? ''); setEditBus(m.bus ?? 'Bus 1') })}
               />
             ))}
           </div>
         ) : (
           <ListModeTable members={filtered} updatingId={updatingId} synced={synced}
             neon={T.neon} neonBg={T.neonBg} neonBorder={T.neonBorder} neonText={T.neonText}
-            onToggle={toggleStatus} onDelete={deleteMember}
-            onEdit={m => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? ''); setEditBus(m.bus ?? 'Bus 1') }}
+            onToggle={toggleStatus} onDelete={id => requirePin(() => deleteMember(id))}
+            onEdit={m => requirePin(() => { setEditMember(m); setEditName(m.name); setEditContact(m.contact_number ?? ''); setEditBus(m.bus ?? 'Bus 1') })}
           />
         )}
       </div>
+
+      {/* ── PIN Modal ── */}
+      {pinPending && (
+        <PinModal
+          neon={T.neon}
+          onSuccess={() => {
+            setPinVerified(true)
+            sessionStorage.setItem('pin-ok', '1')
+            pinPending()
+            setPinPending(null)
+          }}
+          onClose={() => setPinPending(null)}
+        />
+      )}
 
       {/* ── Add Sheet ── */}
       {showAdd && (
@@ -359,6 +382,73 @@ export default function UnitPage({ params }: { params: Promise<{ unit: string }>
         </CyberSheet>
       )}
     </main>
+  )
+}
+
+/* ─── PIN Modal ────────────────────────────────────────────────────────── */
+const CORRECT_PIN = '1567'
+
+function PinModal({ neon, onSuccess, onClose }: { neon: string; onSuccess: () => void; onClose: () => void }) {
+  const [digits, setDigits] = useState('')
+  const [shake, setShake]   = useState(false)
+
+  function tap(d: string) {
+    if (digits.length >= 4) return
+    const next = digits + d
+    setDigits(next)
+    if (next.length === 4) {
+      if (next === CORRECT_PIN) {
+        onSuccess()
+      } else {
+        setShake(true)
+        setTimeout(() => { setDigits(''); setShake(false) }, 600)
+      }
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-72 rounded-3xl p-6 text-center"
+        style={{ background: '#0a1628', border: `1px solid ${neon}30`, boxShadow: `0 0 40px ${neon}15` }}>
+
+        {/* Handle / close */}
+        <div className="flex items-center justify-between mb-5">
+          <span />
+          <p className="font-mono-data text-xs tracking-[0.3em]" style={{ color: neon }}>ENTER PIN</p>
+          <button onClick={onClose} className="text-slate-600 hover:text-slate-400 text-lg leading-none">×</button>
+        </div>
+
+        {/* Dots */}
+        <div className={`flex justify-center gap-4 mb-8 ${shake ? 'animate-shake' : ''}`}>
+          {[0,1,2,3].map(i => (
+            <div key={i} className="w-4 h-4 rounded-full border-2 transition-all"
+              style={{
+                borderColor: neon,
+                background: i < digits.length ? neon : 'transparent',
+                boxShadow: i < digits.length ? `0 0 8px ${neon}` : 'none',
+              }} />
+          ))}
+        </div>
+
+        {/* Keypad */}
+        <div className="grid grid-cols-3 gap-3">
+          {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, idx) => (
+            k === '' ? <div key={idx} /> :
+            <button key={idx}
+              onClick={() => k === '⌫' ? setDigits(d => d.slice(0,-1)) : tap(k)}
+              className="h-14 rounded-2xl font-mono-data font-bold text-xl transition-all press"
+              style={{
+                background: `${neon}10`,
+                border: `1px solid ${neon}25`,
+                color: k === '⌫' ? '#94a3b8' : 'white',
+              }}>
+              {k}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -5,7 +5,7 @@ import type { ChatMessage } from '@/types'
 
 const UNIT_COLOR: Record<string, string> = {
   USTP: '#ffe033', XU: '#3b9eff', Staffer: '#bf7fff',
-  UC: '#00ff88', 'CYA High': '#ff9933', Butuan: '#ff3366',
+  UC: '#00ff88', 'CYA High': '#ff9933', Butuan: '#ff3366', Valencia: '#00e5cc',
 }
 
 function timeAgo(iso: string) {
@@ -156,7 +156,7 @@ export default function GroupChat() {
                   <select value={unit} onChange={e => setUnit(e.target.value)}
                     className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-300 text-sm font-mono-data focus:outline-none focus:border-cyan-600">
                     <option value="">Unit</option>
-                    {['USTP','XU','Staffer','UC','CYA High','Butuan'].map(u => (
+                    {['USTP','XU','Staffer','UC','CYA High','Butuan','Valencia'].map(u => (
                       <option key={u} value={u}>{u}</option>
                     ))}
                   </select>

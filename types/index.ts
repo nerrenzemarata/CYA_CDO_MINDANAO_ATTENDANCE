@@ -1,4 +1,4 @@
-export type Unit = 'USTP' | 'XU' | 'Staffer' | 'UC' | 'Butuan' | 'CYA High'
+export type Unit = 'USTP' | 'XU' | 'Staffer' | 'UC' | 'Butuan' | 'CYA High' | 'Valencia'
 
 export type TripStatus = 'riding' | 'not_going'
 

@@ -91,6 +91,9 @@ export const STATIC_MEMBERS: StaticMember[] = [
   { name: 'Princess Mary Edjulie Pocong', unit: 'CYA High', bus: 'Bus 2', contact_number: '09068700428' },
   { name: 'Reymar Daculiat',              unit: 'CYA High', bus: 'Bus 2', contact_number: '09050369407' },
 
+  // ── Valencia · Bus 2 ─────────────────────────────────────────────────────
+  // (Members to be added via the app)
+
   // ── Staffer · Bus 1 (AGL: Reynaldo Silao, Ronin Java) ────────────────────
   { name: 'Reynaldo Silao',               unit: 'Staffer',  bus: 'Bus 1', contact_number: '09973070255' },
   { name: 'Ronin Java',                   unit: 'Staffer',  bus: 'Bus 1', contact_number: '09531335444' },

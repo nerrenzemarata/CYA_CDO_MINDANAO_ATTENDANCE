@@ -16,7 +16,8 @@ function makeId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
-// Bus assignments:
+// Bus assignments (Valencia members added via app):
+// Valencia: Bus 2
 // Bus 1 (42 pax): USTP + XU + Staffers: Reynaldo Silao (AGL-USTP), Ronin Java (AGL-XU), Angelo Zayne Villanueva, Krizia Faye Alambatang
 // Bus 2 (41 pax): UC + Butuan + Staffers: John Paulo Tumala (AGL-UC), Josh Louise Monte, Princess Lou Carpentero, Blesselle Kaye Lagura, Katrina Lee Corpuz, Martin Clark S. Fabello
 const MEMBERS_DATA: Omit<Member, 'id' | 'created_at'>[] = [
