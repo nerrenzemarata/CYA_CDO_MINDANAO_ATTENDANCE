@@ -4,12 +4,12 @@ import InstallPrompt from '@/components/InstallPrompt'
 import GroupChat from '@/components/GroupChat'
 
 export const metadata: Metadata = {
-  title: 'CYA CDO Mindanao Conference',
+  title: 'CYA Monitoring',
   description: 'Bus attendance monitoring for CYA CDO Mindanao Conference',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'CYA CDO Attendance',
+    title: 'CYA Monitoring',
   },
 }
 

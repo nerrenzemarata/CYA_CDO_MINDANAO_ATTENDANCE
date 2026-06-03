@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'CYA Mindanao Conference – Attendance',
-    short_name: 'CYA Attendance',
-    description: 'Bus attendance monitoring for CYA Mindanao Conference',
+    name: 'CYA Monitoring',
+    short_name: 'CYA Monitoring',
+    description: 'Bus attendance monitoring for CYA CDO Mindanao Conference',
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',
